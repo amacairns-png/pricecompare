@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AU Cloud Direct Price Comparison</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -56,10 +57,13 @@
       background: #f9f9f9;
     }
     #resultsTable { display: none; }
+    #charts { margin-top: 32px; }
+    .chart-wrap { margin-bottom: 40px; }
+    .chart-wrap h2 { font-size: 1rem; margin-bottom: 8px; }
   </style>
 </head>
 <body>
-  <h1>AU Cloud Direct Price Comparison (2019–2020)</h1>
+  <h1 id="pageTitle">AU Cloud Direct Price Comparison</h1>
   <button id="processBtn">Process Files</button>
   <div id="status"></div>
 
@@ -77,11 +81,72 @@
     <tbody id="tableBody"></tbody>
   </table>
 
+  <div id="charts"></div>
+
   <script>
     const btn = document.getElementById('processBtn');
     const status = document.getElementById('status');
     const table = document.getElementById('resultsTable');
     const tbody = document.getElementById('tableBody');
+    const charts = document.getElementById('charts');
+    const pageTitle = document.getElementById('pageTitle');
+
+    const chartInstances = [];
+
+    function renderCharts(results) {
+      // Destroy previous charts
+      chartInstances.forEach(c => c.destroy());
+      chartInstances.length = 0;
+      charts.innerHTML = '';
+
+      // Group by material
+      const byMaterial = {};
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      for (const r of results) {
+        const price = parseFloat(r.pricePerUnit);
+        if (isNaN(price)) continue;
+        const m = r.material;
+        const dateMatch = r.sourceFile.match(/(\d{4})(\d{2})(\d{2})/);
+        if (!dateMatch) continue;
+        const label = `${MONTHS[parseInt(dateMatch[2], 10) - 1]} ${dateMatch[1]}`;
+        const sortKey = `${dateMatch[1]}${dateMatch[2]}`;
+        if (!byMaterial[m]) byMaterial[m] = { label: r.priceListItem || m, points: [] };
+        byMaterial[m].points.push({ label, sortKey, price });
+      }
+
+      for (const [material, { label, points }] of Object.entries(byMaterial)) {
+        // Sort by date
+        points.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+        const wrap = document.createElement('div');
+        wrap.className = 'chart-wrap';
+        wrap.innerHTML = `<h2>${material} — ${label}</h2><canvas></canvas>`;
+        charts.appendChild(wrap);
+
+        const chart = new Chart(wrap.querySelector('canvas'), {
+          type: 'bar',
+          data: {
+            labels: points.map(p => p.label),
+            datasets: [{
+              label: 'Price per Unit (AUD)',
+              data: points.map(p => p.price),
+              backgroundColor: '#0070b8cc',
+              borderColor: '#0070b8',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { title: { display: true, text: 'Price (AUD)' }, beginAtZero: false },
+              y: { title: { display: true, text: 'Month / Year' } }
+            }
+          }
+        });
+        chartInstances.push(chart);
+      }
+    }
 
     btn.addEventListener('click', async () => {
       btn.disabled = true;
@@ -89,6 +154,7 @@
       status.textContent = 'Processing... scanning Excel files, this may take 30–60 seconds.';
       tbody.innerHTML = '';
       table.style.display = 'none';
+      charts.innerHTML = '';
 
       try {
         const resp = await fetch('/api/process');
@@ -110,6 +176,11 @@
 
         table.style.display = data.results.length ? 'table' : 'none';
         status.textContent = `Done. Found ${data.count} result(s). Written to C:\\Pricelists\\cloud\\results.txt`;
+        if (data.minYear && data.maxYear) {
+          const range = data.minYear === data.maxYear ? data.minYear : `${data.minYear}–${data.maxYear}`;
+          pageTitle.textContent = `AU Cloud Direct Price Comparison (${range})`;
+        }
+        renderCharts(data.results);
       } catch (err) {
         status.className = 'error';
         status.textContent = 'Error: ' + err.message;

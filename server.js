@@ -127,10 +127,18 @@ app.get('/api/process', (req, res) => {
     const results = processFiles(materials, pricingFiles);
     console.log(`Found ${results.length} entries across ${pricingFiles.length} files.`);
 
+    // Derive year range from matched results
+    const years = results.map(r => {
+      const m = r.sourceFile.match(/(\d{4})\d{4}/);
+      return m ? parseInt(m[1], 10) : null;
+    }).filter(Boolean);
+    const minYear = years.length ? Math.min(...years) : null;
+    const maxYear = years.length ? Math.max(...years) : null;
+
     writeResults(results);
     console.log(`Results written to ${RESULTS}`);
 
-    res.json({ success: true, count: results.length, results });
+    res.json({ success: true, count: results.length, results, minYear, maxYear });
   } catch (err) {
     console.error('Error:', err);
     res.status(500).json({ success: false, error: err.message });
