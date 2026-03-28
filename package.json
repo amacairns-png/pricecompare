@@ -1,0 +1,13 @@
+{
+  "name": "pricecompare",
+  "version": "1.0.0",
+  "description": "SAP Cloud Direct price list comparison tool",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "xlsx": "^0.18.5"
+  }
+}

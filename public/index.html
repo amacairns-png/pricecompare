@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AU Cloud Direct Price Comparison</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+      color: #333;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+    }
+    #processBtn {
+      padding: 8px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      background: #0070b8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    #processBtn:disabled {
+      background: #aaa;
+      cursor: default;
+    }
+    #status {
+      margin: 12px 0;
+      font-size: 0.95rem;
+      min-height: 20px;
+    }
+    #status.error {
+      color: #c00;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 16px;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 7px 12px;
+      text-align: left;
+    }
+    th {
+      background: #f0f0f0;
+      font-weight: 600;
+    }
+    tr:nth-child(even) td {
+      background: #f9f9f9;
+    }
+    #resultsTable { display: none; }
+  </style>
+</head>
+<body>
+  <h1>AU Cloud Direct Price Comparison (2019–2020)</h1>
+  <button id="processBtn">Process Files</button>
+  <div id="status"></div>
+
+  <table id="resultsTable">
+    <thead>
+      <tr>
+        <th>Material</th>
+        <th>Price List Item</th>
+        <th>Price per Unit</th>
+        <th>Source File</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <script>
+    const btn = document.getElementById('processBtn');
+    const status = document.getElementById('status');
+    const table = document.getElementById('resultsTable');
+    const tbody = document.getElementById('tableBody');
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      status.className = '';
+      status.textContent = 'Processing... scanning Excel files, this may take 30–60 seconds.';
+      tbody.innerHTML = '';
+      table.style.display = 'none';
+
+      try {
+        const resp = await fetch('/api/process');
+        const data = await resp.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Unknown error');
+        }
+
+        for (const r of data.results) {
+          const tr = document.createElement('tr');
+          [r.material, r.priceListItem, r.pricePerUnit, r.sourceFile].forEach(val => {
+            const td = document.createElement('td');
+            td.textContent = val;
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        }
+
+        table.style.display = data.results.length ? 'table' : 'none';
+        status.textContent = `Done. Found ${data.count} result(s). Written to C:\\Pricelists\\cloud\\results.txt`;
+      } catch (err) {
+        status.className = 'error';
+        status.textContent = 'Error: ' + err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
