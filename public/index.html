@@ -68,6 +68,8 @@
       <tr>
         <th>Material</th>
         <th>Price List Item</th>
+        <th>In Blocks Of</th>
+        <th>Metrics</th>
         <th>Price per Unit</th>
         <th>Source File</th>
       </tr>
@@ -98,7 +100,7 @@
 
         for (const r of data.results) {
           const tr = document.createElement('tr');
-          [r.material, r.priceListItem, r.pricePerUnit, r.sourceFile].forEach(val => {
+          [r.material, r.priceListItem, r.inBlocksOf, r.metrics, r.pricePerUnit, r.sourceFile].forEach(val => {
             const td = document.createElement('td');
             td.textContent = val;
             tr.appendChild(td);
